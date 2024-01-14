@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Path Game</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to right, #3494e6, #ec6ead);
+        }
+
+        #game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+
+        #game-logo {
+            width: 80px;
+            height: 80px;
+            background-color: #fff;
+            border-radius: 50%;
+            overflow: hidden;
+            margin: 0 auto 20px;
+        }
+
+        #game-logo img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px); /* Adjust the number of columns and width as needed */
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            background-color: #eee;
+            border: 1px solid #ccc;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .cell:hover {
+            background-color: #ddd;
+        }
+
+        #grid-input {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #point-input {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        #reset-button {
+            margin-top: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #reset-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="game-logo">
+            <img src="grid-logo.png" alt="Game Logo">
+        </div>
+
+        <h1>Grid Path Game</h1>
+
+        <div id="grid-input">
+            <label for="grid-values">Enter grid values (comma-separated): </label>
+            <input type="text" id="grid-values" placeholder="1, 2, 3, 4, 5, 6, 7, 8, 9">
+            <button onclick="generateGame()">Generate Game</button>
+        </div>
+
+        <div id="point-input">
+            <label for="source-point">Selected source point: </label>
+            <span id="selected-source">Not selected</span>
+            <br>
+            <label for="destination-point">Selected destination point: </label>
+            <span id="selected-destination">Not selected</span>
+        </div>
+
+        <div id="game-board"></div>
+
+        <button id="reset-button" onclick="resetPoints()">Reset Source and Destination</button>
+    </div>
+
+    <script>
+        let grid;
+        let sourcePoint = null;
+        let destinationPoint = null;
+
+        // Function to create the game board dynamically
+        function createGameBoard() {
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.innerHTML = ''; // Clear previous board
+
+            const rows = grid.length;
+            const cols = grid[0].length;
+
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.setAttribute('data-row', i);
+                    cell.setAttribute('data-col', j);
+                    cell.textContent = grid[i][j];
+
+                    // Add an event listener for cell clicks
+                    cell.addEventListener('click', handleCellClick);
+
+                    gameBoard.appendChild(cell);
+                }
+            }
+        }
+
+        // Event handler for cell clicks
+        function handleCellClick(event) {
+            const clickedCell = event.target;
+            const row = parseInt(clickedCell.getAttribute('data-row'));
+            const col = parseInt(clickedCell.getAttribute('data-col'));
+
+            // Toggle source and destination points on click
+            if (sourcePoint === null) {
+                sourcePoint = { row, col };
+                document.getElementById('selected-source').textContent = `(${row + 1}, ${col + 1})`;
+            } else if (destinationPoint === null) {
+                destinationPoint = { row, col };
+                document.getElementById('selected-destination').textContent = `(${row + 1}, ${col + 1})`;
+            }
+
+            // Check if both source and destination are selected
+            if (sourcePoint !== null && destinationPoint !== null) {
+                // Compute the minimum sum path from the source to the destination
+                const result = minSumPath(sourcePoint.row, sourcePoint.col, destinationPoint.row, destinationPoint.col);
+
+                // Display the result in an alert (you can customize this)
+                alert(`Minimum Sum Path from Source to Destination: ${result}`);
+            }
+        }
+
+        // Function to compute the minimum sum path from a cell to the destination
+        function minSumPath(startRow, startCol, destRow, destCol) {
+            const rows = grid.length;
+            const cols = grid[0].length;
+
+            // Dynamic programming to calculate minimum sum path
+            const dp = new Array(rows).fill(null).map(() => new Array(cols).fill(0));
+
+            // Initialize the starting point
+            dp[startRow][startCol] = grid[startRow][startCol];
+
+            // Define all possible moves (8 directions)
+            const moves = [
+                [-1, -1], [-1, 0], [-1, 1],
+                [0, -1],           [0, 1],
+                [1, -1], [1, 0], [1, 1]
+            ];
+
+            // Iterate through each cell and calculate the minimum sum path
+            for (let i = startRow; i < rows; i++) {
+                for (let j = startCol; j < cols; j++) {
+                    if (i === startRow && j === startCol) continue;
+
+                    dp[i][j] = grid[i][j] + Math.min(
+                        ...moves.map(move => {
+                            const ni = i + move[0];
+                            const nj = j + move[1];
+                            return (ni >= 0 && ni < rows && nj >= 0 && nj < cols) ? dp[ni][nj] : Infinity;
+                        })
+                    );
+                }
+            }
+
+            return dp[destRow][destCol];
+        }
+
+        // Function to generate the game based on user input
+        function generateGame() {
+            const inputElement = document.getElementById('grid-values');
+            const inputValues = inputElement.value.trim();
+
+            // Reset source and destination points
+            sourcePoint = null;
+            destinationPoint = null;
+            document.getElementById('selected-source').textContent = 'Not selected';
+            document.getElementById('selected-destination').textContent = 'Not selected';
+
+            if (inputValues) {
+                const valuesArray = inputValues.split(',').map(value => parseInt(value.trim()));
+                const rows = Math.sqrt(valuesArray.length);
+
+                if (rows % 1 === 0) { // Check if it's a perfect square
+                    grid = [];
+                    for (let i = 0; i < rows; i++) {
+                        grid.push(valuesArray.slice(i * rows, (i + 1) * rows));
+                    }
+
+                    createGameBoard();
+                    return;
+                }
+            }
+
+            alert('Invalid input. Please enter a valid set of comma-separated values for a square grid.');
+        }
+
+        // Function to reset source and destination points
+        function resetPoints() {
+            sourcePoint = null;
+            destinationPoint = null;
+            document.getElementById('selected-source').textContent = 'Not selected';
+            document.getElementById('selected-destination').textContent = 'Not selected';
+        }
+    </script>
+</body>
+</html>
